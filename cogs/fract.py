@@ -24,6 +24,7 @@ conn.commit()
 class FractCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.message_ids = {}
 
     @commands.slash_command(name = "add-fraction", description = "Добавляет новую фракцию в базу данных")
     @commands.has_permissions(administrator = True)
@@ -38,6 +39,7 @@ class FractCog(commands.Cog):
             return
         else:
             cursor.execute("INSERT INTO fractions (name, leader, color) VALUES (?, ?, ?)", (name, leader.id, color))
+            cursor.execute("INSERT INTO members (member, frac) VALUES (?, ?)", (leader.id, name))
             conn.commit()
             await inter.response.send_message(f"Фракция {name} успешно создана. Её лидер - {leader.mention}")
 
@@ -62,12 +64,12 @@ class FractCog(commands.Cog):
         frac = cursor.fetchone()
         cursor.execute("SELECT leader FROM fractions WHERE name = ?", (name,))
         owner = cursor.fetchone()
-        cursor.execute("SELECT * FROM members WHERE member = ?", (member.id,))
+        cursor.execute("SELECT * FROM members WHERE member = ?", (leader.id,))
         mem = cursor.fetchone()
         if not frac:
             await inter.response.send_message("Фракции не существует", ephemeral = True)
             return
-        elif mem is not None:
+        elif mem[1] != frac[0]:
             await inter.response.send_message("Участник уже находится во фракции", ephemeral = True)
             return
         elif owner[0] == leader.id:
@@ -116,8 +118,25 @@ class FractCog(commands.Cog):
             conn.commit()
             await inter.response.send_message(f"Участник {member.mention} успешно исключен из фракции {owner_frac[0]}")
 
+    @commands.slash_command(name = "leave", description = "Выйти из фракции")
+    async def leave(self, inter):
+        cursor.execute("SELECT * FROM members WHERE member = ?", (inter.author.id,))
+        member = cursor.fetchone()
+        cursor.execute("SELECT * FROM fractions WHERE leader = ?", (inter.author.id,))
+        lead = cursor.fetchone()
+        if lead:
+            await inter.response.send_message("Вы являетесь лидером фракции. Для начала передайте лидера перед выходом", ephemeral = True)
+            return
+        elif not member:
+            await inter.response.send_message("Вы и так не находитесь во фракции", ephemeral = True)
+            return
+        else:
+            cursor.execute("DELETE FROM members WHERE member = ?", (inter.author.id,))
+            conn.commit()
+            await inter.response.send_message("Вы успешно покинули фракцию", ephemeral = True)
 
-    @commands.slash_command(name = "get-fractions", description = "Возвращает список фракций и её лидеров")
+
+    @commands.slash_command(name="get-fractions", description="Возвращает список фракций и её лидеров")
     async def get_frac(self, inter):
         cursor.execute("SELECT * FROM fractions")
         fracs = cursor.fetchall()
@@ -130,11 +149,19 @@ class FractCog(commands.Cog):
         for frac in fracs:
             name, leader_id, color = frac
             leader = inter.guild.get_member(leader_id)
-            leader_mention = leader.mention
+            leader_mention = leader.mention if leader else "Неизвестный лидер"
+
+            cursor.execute("SELECT member FROM members WHERE frac = ?", (name,))
+            members = cursor.fetchall()
+            member_mentions = [inter.guild.get_member(member[0]).mention for member in members if
+                               inter.guild.get_member(member[0])]
+
+            if member_mentions:
+                members_list = ", ".join(member_mentions)
 
             embed = disnake.Embed(
-                title=name,
-                description=f"Лидер: {leader_mention}",
+                title=f"Список участников фракции {name}",
+                description=f"Лидер: {leader_mention}\nУчастники: {members_list}",
                 color=int(color, 16)
             )
             embeds.append(embed)
