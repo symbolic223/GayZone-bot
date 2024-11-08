@@ -168,6 +168,33 @@ class FractCog(commands.Cog):
 
         await inter.response.send_message(embeds=embeds)
 
+    @commands.slash_command(name = "fraction-info", description = "Показывает информацию о вашей фракции")
+    async def frac_info(self, inter):
+        cursor.execute("SELECT frac FROM members WHERE member = ?", (inter.author.id,))
+        frac_name = cursor.fetchone()
+        cursor.execute("SELECT member FROM members WHERE frac = ?", (frac_name[0],))
+        members = cursor.fetchall()
+        if not frac_name:
+            await inter.response.send_message("Вы не находитесь во фракции.", ephemeral = True)
+            return
+        else:
+            cursor.execute("SELECT * FROM fractions WHERE name = ?", (frac_name[0],))
+            frac = cursor.fetchone()
+            name, leader_id, color = frac
+            leader = inter.guild.get_member(leader_id)
+            leader_ment = leader.mention
+            member_mentions = [inter.guild.get_member(member[0]).mention for member in members if
+                               inter.guild.get_member(member[0])]
+            if member_mentions:
+                members_list = ''.join(member_mentions)
+            embed = disnake.Embed(
+                title = f"Список участников фракции {name}",
+                description=f"Лидер: {leader.mention}\n Участники: {members_list}",
+                color = int(color, 16)
+            )
+            await inter.response.send_message(embed = embed)
+
+
 
 def setup(bot: commands.Bot):
     bot.add_cog(FractCog(bot))
