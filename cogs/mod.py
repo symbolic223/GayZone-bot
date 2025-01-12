@@ -10,12 +10,12 @@ class ModCog(commands.Cog):
     async def on_message(self, message: disnake.Message):
         mes_u = disnake.Embed(
             title = f"Жалоба на игрока от {message.author.name}",
-            description="В этой ветке действуют все правила, просьба их соблюдать.",
+            description="В этой ветке действуют все правила. Просьба их соблюдать, а иначе, вы попадете в ♂DUNGEON♂",
             color = 0x2084fc
         )
         mes_a = disnake.Embed(
             title=f"Жалоба на администратора от {message.author.name}",
-            description="В этой ветке действуют все правила, просьба их соблюдать.",
+            description="В этой ветке действуют все правила. Просьба их соблюдать, а иначе, вы попадете в ♂DUNGEON♂",
             color=0x2084fc
         )
         user_c = await self.bot.fetch_channel(1221459197288513617)
